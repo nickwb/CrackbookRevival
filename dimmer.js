@@ -1,83 +1,49 @@
-var BODY_POLL_MS = 30;
-var DIMMER_DIV_ID = '_crackbook_dimmer_';
+var DIMMER_DIV_ID = "_crackbook_dimmer_";
 var DIMMER_TEXT = "Wait %d seconds for the content to appear.";
 var DIMMER_SWITCH_TEXT = "The timer restarts if you switch away from this tab.";
 
-var TRACING = false;
-
 var original_url = null;
 var dimmer_options = {};
+
+var dimmer_timer = null;
 var media_timer = null;
 
-function clearDimTimer(dimmer) {
-  // Clear old timer.
-  var timerIdInput = document.getElementById(DIMMER_DIV_ID + "timerId");
-  if (timerIdInput) {
-    timerId = parseInt(timerIdInput.value);
-    clearTimeout(timerId);
-    dimmer.removeChild(timerIdInput);
-  }
+function getDimmer() {
+  return document.getElementById(DIMMER_DIV_ID);
 }
 
-function setDimTimer(dimmer, delay) {
-  // Clear old timer.
-  var timerIdInput = document.getElementById(DIMMER_DIV_ID + "timerId");
-  if (timerIdInput) {
-    timerId = parseInt(timerIdInput.value);
-    clearTimeout(timerId);
+function getOrCreateDimmer() {
+  var dimmer = getDimmer();
+  if (dimmer) {
+    return dimmer;
   }
 
-  var timeoutFn = function() {
-    // Disable the dimmer. This page may be dimmed again if the URL changes.
-    var dimmer = document.getElementById(DIMMER_DIV_ID);
-    dimmer.style.display = "none";
-
-    showScrollbars();
-    unSuppressMedia();
-  };
-
-  // Set timer.
-  var timerId = setTimeout(timeoutFn, Math.round(delay * 1000));
-
-  // Store timer ID.
-  if (!timerIdInput) {
-    var timerIdInput = document.createElement("input");
-    timerIdInput.id = DIMMER_DIV_ID + "timerId";
-    timerIdInput.type = "hidden";
-    dimmer.appendChild(timerIdInput);
-  }
-  timerIdInput.value = timerId;
-}
-
-function addDimmer(delay) {
-  var dimmer = document.createElement('div');
+  dimmer = document.createElement("div");
   dimmer.id = DIMMER_DIV_ID;
-
-  // TODO: add a picture
 
   // Message
   dimmer.style.color = "#ffffff";
   dimmer.style.paddingTop = window.innerHeight / 2 - 30 + "px";
-  dimmer.style.fontSize = '36px';
-  dimmer.style.fontFamily = 'Georgia';
-  dimmer.style.fontVariant = 'normal';
+  dimmer.style.fontSize = "36px";
+  dimmer.style.fontFamily = "Georgia";
+  dimmer.style.fontVariant = "normal";
 
-  var text = document.createElement("div");
-  text.innerHTML = DIMMER_TEXT.replace('%d', Math.round(delay));
-  text.style.textAlign = "center";
-  text.style.paddingTop = "50px";
-  text.style.fontSize = "20px";
-  dimmer.appendChild(text);
+  var main_text = document.createElement("div");
+  main_text.style.textAlign = "center";
+  main_text.style.paddingTop = "50px";
+  main_text.style.fontSize = "20px";
+  dimmer.appendChild(main_text);
+  dimmer.main_text = main_text;
 
   var switch_text = document.createElement("div");
-  switch_text.innerHTML = DIMMER_SWITCH_TEXT;
-  switch_text.id = DIMMER_DIV_ID + 'stayput';
+  switch_text.innerText = DIMMER_SWITCH_TEXT;
   switch_text.style.display = "none";
   switch_text.style.textAlign = "center";
   switch_text.style.paddingTop = "10px";
   switch_text.style.fontSize = "14px";
   switch_text.style.color = "#aaaaaa";
   dimmer.appendChild(switch_text);
+  dimmer.switch_text = switch_text;
 
   // Positioning.
   dimmer.style.position = "fixed";
@@ -95,36 +61,76 @@ function addDimmer(delay) {
   }
 
   document.body.insertBefore(dimmer, document.body.firstChild);
+  return dimmer;
+}
 
-  hideScrollbars();
+function beginBlocking(suspend) {
+  var delay = dimmer_options.delay;
+  var dimmer = getOrCreateDimmer();
 
-  // Install URL change watcher.
-  original_url = document.URL;
-  setInterval(watchUrlChanges, 1000);
-  // TODO(gintas): Disable watcher when the tab is not active.
+  // Make sure the dimmer is shown
+  dimmer.style.display = "block";
+
+  // Update the timer text
+  dimmer.main_text.innerText = DIMMER_TEXT.replace("%d", Math.round(delay));
+
+  // Hide scrollbars
+  document.body.style.overflow = "hidden";
+  document.documentElement.style.overflow = "hidden";
 
   // Pause audio/video
   suppressMedia();
 
-  return dimmer;
+  if (!suspend) {
+    // If the tab is not suspended, start timing
+    clearDimTimer();
+    dimmer_timer = setTimeout(endBlocking, Math.round(delay * 1000));
+  }
+}
+
+function endBlocking() {
+  var dimmer = getDimmer();
+
+  // Hide the dimmer
+  dimmer.style.display = "none";
+
+  // Show scrollbars
+  document.body.style.overflow = null;
+  document.documentElement.style.overflow = null;
+
+  // Stop polling for media objects
+  if (media_timer !== null) {
+    window.clearInterval(media_timer);
+    media_timer = null;
+  }
+
+  clearDimTimer();
+}
+
+function clearDimTimer() {
+  if (dimmer_timer !== null) {
+    clearTimeout(dimmer_timer);
+    dimmer_timer = null;
+  }
+}
+
+function pauseAll() {
+  for (var video of document.getElementsByTagName("video")) {
+    if (video.autoplay || !video.paused) {
+      video.autoplay = false;
+      video.pause();
+    }
+  }
+
+  for (var audio of document.getElementsByTagName("audio")) {
+    if (audio.autoplay || !audio.paused) {
+      audio.autoplay = false;
+      audio.pause();
+    }
+  }
 }
 
 function suppressMedia() {
-  function pauseAll() {
-    for (var video of document.getElementsByTagName("video")) {
-      if (video.autoplay || !video.paused) {
-        video.autoplay = false;
-        video.pause();
-      }
-    }
-
-    for (var audio of document.getElementsByTagName("audio")) {
-      if (audio.autoplay || !audio.paused) {
-        audio.autoplay = false;
-        audio.pause();
-      }
-    }
-  }
   pauseAll();
 
   if (media_timer !== null) {
@@ -135,60 +141,38 @@ function suppressMedia() {
   media_timer = window.setInterval(pauseAll, 250);
 }
 
-function unSuppressMedia() {
-  if (media_timer !== null) {
-    window.clearInterval(media_timer);
-    media_timer = null;
-  }
+function checkUrlForJunk() {
+  chrome.extension.sendRequest({}, function(response) {
+    if (response.dimmerAction) {
+      // Save dimmer parameters.
+      dimmer_options = response.options;
+      invoke_dimmer(response.dimmerAction);
+    }
+  });
 }
 
-/* Watches for URL changes and reshows the dimmer if a change is detected. */
 function watchUrlChanges() {
   if (document.URL != original_url) {
     original_url = document.URL;
-    dim('reshow');
+    checkUrlForJunk();
   }
 }
 
-// Actions
+function onBegin() {
+  // On initial load, check with the extension whether action needs to be taken.
+  checkUrlForJunk();
 
-function create(dimmer_el, delay) {
-  if (!dimmer_el) {
-    var dimmer = addDimmer(delay);
-    setDimTimer(dimmer, delay);
-  }
+  // Install URL change watcher.
+  original_url = document.URL;
+  setInterval(watchUrlChanges, 1000);
 }
 
-function create_suspended(dimmer_el, delay) {
-  if (!dimmer_el) {
-    var dimmer = addDimmer(delay);
-  }
-}
-
-function suspend(dimmer_el, delay) {
-  if (dimmer_el) {
-    clearDimTimer(dimmer_el);
-  }
-}
-
-function resume(dimmer_el, delay) {
-  if (dimmer_el && dimmer_el.style.display != "none") {
-    setDimTimer(dimmer_el, delay);
-    suppressMedia();
-
-    var switch_text = document.getElementById(DIMMER_DIV_ID + 'stayput');
-    switch_text.style.display = "block";
-  }
-}
-
-function reshow(dimmer_el, delay) {
-  if (dimmer_el) {
-    dimmer_el.style.display = "block";
-
-    hideScrollbars();
-    setDimTimer(dimmer_el, delay);
-    suppressMedia();
-    // TODO(gintas): Do not assume that this tab is currently active.
+function resume() {
+  var dimmer = getDimmer();
+  // If the dimmer is already hidden, then the delay has already been paid by the user
+  if (dimmer && dimmer.style.display !== "none") {
+    dimmer.switch_text.style.display = "block";
+    beginBlocking(false);
   }
 }
 
@@ -201,58 +185,26 @@ function reshow(dimmer_el, delay) {
      - "resume": the countdown is resumed if there is a dimmer on the page, no-op otherwise
 
  */
-function dim(action) {
-  // Dispatch by action name.
-  var action_fns = {
-    create: create,
-    suspend: suspend,
-    resume: resume,
-    create_suspended: create_suspended,
-    reshow: reshow
-  };
-
-  if (TRACING) {
-    console.log("action: " + action);
-  }
-
-  var action_fn = action_fns[action];
-
-  var dimmer_el = document.getElementById(DIMMER_DIV_ID);
-  action_fn(dimmer_el, dimmer_options.delay);
-}
-
-/* Forwarder function for calls using executeScript() */
 function invoke_dimmer(action) {
-  dim(action);
-}
-
-// On initial load, check with the extension whether action needs to be taken.
-chrome.extension.sendRequest({}, function(response) {
-  if (response.redirectUrl) {
-    window.location.href = response.redirectUrl;
-  } else if (response.dimmerAction) {
-    // Save dimmer parameters.
-    dimmer_options = response.options;
-    function delayedDimmerFn() {
-      if (document.body != null) {
-        // The body of the document has started loading, the dimmer can be shown.
-        invoke_dimmer(response.dimmerAction);
-      } else {
-        // The body is not yet available.
-        setTimeout(delayedDimmerFn, BODY_POLL_MS);
-      }
-    }
-    // Start polling.
-    delayedDimmerFn();
+  if (action === "create") {
+    beginBlocking(false);
+  } else if (action === "create_suspended") {
+    beginBlocking(true);
+  } else if (action === "suspend") {
+    clearDimTimer();
+  } else if (action === "resume") {
+    resume();
   }
-});
-
-function hideScrollbars() {
-  document.body.style.overflow = "hidden";
-  document.documentElement.style.overflow = "hidden";
 }
 
-function showScrollbars() {
-  document.body.style.overflow = null;
-  document.documentElement.style.overflow = null;
+// Mostly borrowed from: https://github.com/bendrucker/document-ready
+function ready(callback) {
+  var state = document.readyState;
+  if (state === "complete" || state === "interactive") {
+    return setTimeout(callback, 0);
+  }
+
+  document.addEventListener("DOMContentLoaded", callback);
 }
+
+ready(onBegin);
