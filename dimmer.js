@@ -21,43 +21,19 @@ function getOrCreateDimmer() {
   dimmer = document.createElement("div");
   dimmer.id = DIMMER_DIV_ID;
 
-  // Message
-  dimmer.style.color = "#ffffff";
-  dimmer.style.paddingTop = window.innerHeight / 2 - 30 + "px";
-  dimmer.style.fontSize = "36px";
-  dimmer.style.fontFamily = "Georgia";
-  dimmer.style.fontVariant = "normal";
-
   var main_text = document.createElement("div");
-  main_text.style.textAlign = "center";
-  main_text.style.paddingTop = "50px";
-  main_text.style.fontSize = "20px";
+  main_text.className = "crackbook_main_text";
   dimmer.appendChild(main_text);
   dimmer.main_text = main_text;
 
   var switch_text = document.createElement("div");
+  switch_text.className = "crackbook_switch_text";
   switch_text.innerText = DIMMER_SWITCH_TEXT;
-  switch_text.style.display = "none";
-  switch_text.style.textAlign = "center";
-  switch_text.style.paddingTop = "10px";
-  switch_text.style.fontSize = "14px";
-  switch_text.style.color = "#aaaaaa";
   dimmer.appendChild(switch_text);
   dimmer.switch_text = switch_text;
 
-  // Positioning.
-  dimmer.style.position = "fixed";
-  dimmer.style.top = "0px";
-  dimmer.style.left = "0px";
-  dimmer.style.width = "100%";
-  dimmer.style.height = "100%";
-
-  // Background.
-  dimmer.style.zIndex = "2147483647";
-  dimmer.style.background = "#001000";
   if (dimmer_options.blurBackground) {
-    dimmer.style.background = "rgba(0, 16, 0, .6)";
-    dimmer.style.backdropFilter = "blur(10px)";
+    dimmer.classList.add("blur-bg");
   }
 
   document.body.insertBefore(dimmer, document.body.firstChild);
@@ -69,7 +45,7 @@ function beginBlocking(suspend) {
   var dimmer = getOrCreateDimmer();
 
   // Make sure the dimmer is shown
-  dimmer.style.display = "block";
+  dimmer.classList.add("shown");
 
   // Update the timer text
   dimmer.main_text.innerText = DIMMER_TEXT.replace("%d", Math.round(delay));
@@ -92,7 +68,7 @@ function endBlocking() {
   var dimmer = getDimmer();
 
   // Hide the dimmer
-  dimmer.style.display = "none";
+  dimmer.classList.remove("shown");
 
   // Show scrollbars
   document.body.style.overflow = null;
@@ -167,11 +143,19 @@ function onBegin() {
   setInterval(watchUrlChanges, 1000);
 }
 
+function revealSwitchText(dimmer) {
+  dimmer.switch_text.classList.add("shown");
+  dimmer.switch_text.classList.add("animating");
+  setTimeout(function() {
+    dimmer.switch_text.classList.remove("animating");
+  }, 1500);
+}
+
 function resume() {
   var dimmer = getDimmer();
   // If the dimmer is already hidden, then the delay has already been paid by the user
-  if (dimmer && dimmer.style.display !== "none") {
-    dimmer.switch_text.style.display = "block";
+  if (dimmer && dimmer.classList.contains("shown")) {
+    revealSwitchText(dimmer);
     beginBlocking(false);
   }
 }

@@ -1,0 +1,79 @@
+#_crackbook_dimmer_ {
+  color: #ffffff;
+  font-family: Georgia;
+  font-variant: normal;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2147483647;
+  background: #001000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  display: none;
+}
+
+#_crackbook_dimmer_.shown {
+  display: flex;
+}
+
+#_crackbook_dimmer_.blur-bg {
+  background: rgba(0, 16, 0, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+#_crackbook_dimmer_ .crackbook_main_text {
+  text-align: center;
+  font-size: 20px;
+}
+
+/* From Animate.css
+ * https://daneden.github.io/animate.css/
+ */
+@keyframes tada {
+  from {
+    transform: scale3d(1, 1, 1);
+  }
+
+  10%,
+  20% {
+    transform: scale3d(0.9, 0.9, 0.9) rotate3d(0, 0, 1, -3deg);
+  }
+
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: scale3d(1.1, 1.1, 1.1) rotate3d(0, 0, 1, 3deg);
+  }
+
+  40%,
+  60%,
+  80% {
+    transform: scale3d(1.1, 1.1, 1.1) rotate3d(0, 0, 1, -3deg);
+  }
+
+  to {
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+#_crackbook_dimmer_ .crackbook_switch_text {
+  visibility: hidden;
+  text-align: center;
+  padding-top: 10px;
+  font-size: 14px;
+  color: #aaaaaa;
+}
+
+#_crackbook_dimmer_ .crackbook_switch_text.shown {
+  visibility: visible;
+}
+
+#_crackbook_dimmer_ .crackbook_switch_text.animating {
+  animation-name: tada;
+  animation-duration: 1s;
+  animation-fill-mode: both;
+}

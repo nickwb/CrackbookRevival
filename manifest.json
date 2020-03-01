@@ -20,14 +20,10 @@
     {
       "matches": ["*://*/*"],
       "js": ["dimmer.js"],
+      "css": ["dimmer.css"],
       "run_at": "document_start"
     }
   ],
-  "content_security_policy":  "script-src 'self'; object-src 'self'",
-  "permissions": [
-    "history",
-    "notifications",
-    "tabs",
-    "*://*/*"
-  ]
+  "content_security_policy": "script-src 'self'; object-src 'self'",
+  "permissions": ["history", "notifications", "tabs", "*://*/*"]
 }
