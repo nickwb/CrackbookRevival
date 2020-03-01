@@ -1,8 +1,8 @@
-var HITNUM_FONT = '12px Arial Bold';
+var HITNUM_FONT = "12px Arial Bold";
 var HITNUM_COLOR = "rgb(255,255,255)";
 var HITNUM_POS_X = 3;
 var HITNUM_POS_Y = 12;
-var NOTIFICATION_TEXT = 'Time to get back to work!';
+var NOTIFICATION_TEXT = "Time to get back to work!";
 
 // TODO: the following should be configurable
 
@@ -17,7 +17,7 @@ function drawIcon(img_name) {
 } // drawIcon
 
 function drawTextOnBg(canvas, image, value) {
-  var ctx = canvas.getContext('2d');
+  var ctx = canvas.getContext("2d");
 
   ctx.drawImage(image, 0, 0);
 
@@ -32,10 +32,12 @@ function drawTextOnBg(canvas, image, value) {
 var iconState = null;
 
 function updateIcon(active, inJunk) {
-  if (active === null) // null or undefined
+  if (active === null)
+    // null or undefined
     active = extensionActive();
-  if (inJunk === null) { // null or undefined
-    chrome.tabs.getSelected(null, function (selectedTab) {
+  if (inJunk === null) {
+    // null or undefined
+    chrome.tabs.getSelected(null, function(selectedTab) {
       var junkDomain = lookupJunkDomain(selectedTab.url);
       updateIcon(active, !!junkDomain);
     });
@@ -44,10 +46,9 @@ function updateIcon(active, inJunk) {
 
   var newIcon = null;
 
-  newIcon = inJunk ? 'hamburger' : 'carrot';
-  if (!active)
-    newIcon += '-inactive';
-  newIcon += '-19px.png';
+  newIcon = inJunk ? "hamburger" : "carrot";
+  if (!active) newIcon += "-inactive";
+  newIcon += "-19px.png";
 
   if (iconState != newIcon) {
     iconState = newIcon;
@@ -58,22 +59,21 @@ function updateIcon(active, inJunk) {
 function extensionActive() {
   var now = new Date();
   // Check weekday.
-  if (getLocal('weekdays').indexOf("" + now.getDay()) == -1)
-    return false;
+  if (getLocal("weekdays").indexOf("" + now.getDay()) == -1) return false;
   // Check time.
   var nowMins = parseTime(now.getHours() + ":" + now.getMinutes());
-  var startTime = getLocal('startTime');
-  var endTime = getLocal('endTime');
+  var startTime = getLocal("startTime");
+  var endTime = getLocal("endTime");
   if (startTime <= endTime) {
-    return (startTime <= nowMins) && (nowMins <= endTime);
+    return startTime <= nowMins && nowMins <= endTime;
   } else {
     // Handle the case when, e.g. the end time is in the night (14:00-3:00).
-    return (startTime <= nowMins) || (nowMins <= endTime);
+    return startTime <= nowMins || nowMins <= endTime;
   }
 }
 
 function shouldDimPage() {
-  return getTodaysHits() >= getLocal('dimmerThreshold');
+  return getTodaysHits() >= getLocal("dimmerThreshold");
 }
 
 function toQueryString(obj) {
@@ -81,9 +81,9 @@ function toQueryString(obj) {
   var components = [];
   for (var k in obj) {
     var v = obj[k];
-    components.push(k + '=' + encodeURIComponent(v));
+    components.push(k + "=" + encodeURIComponent(v));
   }
-  return components.join('&');
+  return components.join("&");
 }
 
 function registerHit(domain, blocked, active) {
@@ -93,7 +93,7 @@ function registerHit(domain, blocked, active) {
 // Returns true if the URL looks normal.
 // Used to avoid trying to dim special-purpose tabs.
 function isNormalUrl(s) {
-  return s && ((s.indexOf('http://') === 0) || (s.indexOf('https://') === 0));
+  return s && (s.indexOf("http://") === 0 || s.indexOf("https://") === 0);
 }
 
 /*
@@ -121,7 +121,7 @@ function handleNewPage(newTab, selectedTab, sendResponse) {
   var junkDomain = lookupJunkDomain(newTab.url);
   var active = extensionActive();
   var shouldDim = shouldDimPage();
-  if (!junkDomain && getLocal('checkActiveTab')) {
+  if (!junkDomain && getLocal("checkActiveTab")) {
     junkDomain = lookupJunkDomain(selectedTab.url);
     // TODO: This works for "open in background tab", but not for "open in
     // foreground tab" or "open in new window". Cover these cases by checking
@@ -142,14 +142,14 @@ function handleNewPage(newTab, selectedTab, sendResponse) {
       incrementJunkCounter(junkDomain);
 
       if (shouldDim) {
-        var tabIsActive = (newTab.id == selectedTab.id);
-       
+        var tabIsActive = newTab.id == selectedTab.id;
+
         sendResponse({
           dimmerAction: tabIsActive ? "create" : "create_suspended",
-	    options: {
-	      blurBackground: getLocal('blurBackground'),
-	      delay: getLocal('dimmerDelay'),
-	    }
+          options: {
+            blurBackground: getLocal("blurBackground"),
+            delay: getLocal("dimmerDelay")
+          }
         });
 
         responseSent = true;
@@ -164,13 +164,13 @@ function handleNewPage(newTab, selectedTab, sendResponse) {
   }
 
   if (!responseSent) {
-    sendResponse({});  // do nothing
+    sendResponse({}); // do nothing
   }
 }
 
 function increaseDimmerDelay() {
-  var newDelay = getLocal('dimmerDelay') + getLocal('dimmerDelayIncrement');
-  setLocal('dimmerDelay', newDelay);
+  var newDelay = getLocal("dimmerDelay") + getLocal("dimmerDelayIncrement");
+  setLocal("dimmerDelay", newDelay);
 }
 
 function tabSelectionChangedHandler(tabId, selectInfo) {
@@ -179,7 +179,7 @@ function tabSelectionChangedHandler(tabId, selectInfo) {
     lastDimmedTabId = null;
   }
 
-  chrome.tabs.get(tabId, function (tab) {
+  chrome.tabs.get(tabId, function(tab) {
     if (isNormalUrl(tab.url)) {
       // If the page was opened from a junk page, the following check will not
       // indicate that this page is junk. Only the icon is affected though.
@@ -199,7 +199,7 @@ function windowFocusChangedHandler(windowId) {
   }
 
   if (windowId != chrome.windows.WINDOW_ID_NONE) {
-    chrome.tabs.getSelected(windowId, function (tab) {
+    chrome.tabs.getSelected(windowId, function(tab) {
       if (isNormalUrl(tab.url)) {
         var junkDomain = lookupJunkDomain(tab.url);
         updateIcon(null, !!junkDomain);
@@ -214,46 +214,51 @@ function windowFocusChangedHandler(windowId) {
 
 // A wrapper function that also figures out the selected tab.
 function newPageHandler(request, sender, sendResponse) {
-  chrome.tabs.getSelected(null, function (selectedTab) {
+  chrome.tabs.getSelected(null, function(selectedTab) {
     handleNewPage(sender.tab, selectedTab, sendResponse);
   });
+  return true;
 }
 
 function showNotification() {
   var notification_obj = webkitNotifications.createNotification(
-    'images/hamburger-128px.png',
+    "images/hamburger-128px.png",
     NOTIFICATION_TEXT,
-    "");
+    ""
+  );
   notification_obj.show();
-  window.setTimeout(function () { notification_obj.cancel(); }, 3000);
+  window.setTimeout(function() {
+    notification_obj.cancel();
+  }, 3000);
 }
 
 function incrementJunkCounter(domain) {
   var today = todayAsString();
-  var day = getLocal('day');
-  var hits = getLocal('dayHits');
+  var day = getLocal("day");
+  var hits = getLocal("dayHits");
   if (day == today) {
     hits += 1;
   } else {
-    setLocal('day', today);
+    setLocal("day", today);
     hits = 1;
   }
-  setLocal('dayHits', hits);
+  setLocal("dayHits", hits);
 
   // Also, if the day changed and reset_daily_flag is set, reset.
-  if (day != today && getLocal('reset_daily_flag')) {
-    setLocal('dimmerDelay', getLocal('base_delay'));
+  if (day != today && getLocal("reset_daily_flag")) {
+    setLocal("dimmerDelay", getLocal("base_delay"));
   }
 
   chrome.browserAction.setBadgeText({ text: "" + hits });
-  setTimeout(function () { chrome.browserAction.setBadgeText({ text: '' }); },
-    3000);
+  setTimeout(function() {
+    chrome.browserAction.setBadgeText({ text: "" });
+  }, 3000);
 
   // Show notification if needed.
-  if (hits > NOTIFICATION_THRESHOLD && (hits % NOTIFICATION_HIT_INTERVAL === 0))
-    // If hits >= dimmerThreshold, the notification is not needed any
-    // more as the dimmer kicks in.
-    if (hits < getLocal('dimmerThreshold'))
+  if (hits > NOTIFICATION_THRESHOLD && hits % NOTIFICATION_HIT_INTERVAL === 0)
+    if (hits < getLocal("dimmerThreshold"))
+      // If hits >= dimmerThreshold, the notification is not needed any
+      // more as the dimmer kicks in.
       showNotification();
 }
 
@@ -277,14 +282,13 @@ function initIcon() {
 }
 
 function initExtension() {
-  chrome.extension.onRequest.addListener(newPageHandler);
+  chrome.runtime.onMessage.addListener(newPageHandler);
   chrome.tabs.onSelectionChanged.addListener(tabSelectionChangedHandler);
   chrome.windows.onFocusChanged.addListener(windowFocusChangedHandler);
   initIcon();
 
-  if (getLocal('first_run') && getLocal('junkDomains').length === 0)
+  if (getLocal("first_run") && getLocal("junkDomains").length === 0)
     chrome.tabs.create({ url: "options.html" });
 }
 
 initExtension();
-

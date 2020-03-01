@@ -142,7 +142,7 @@ function suppressMedia() {
 }
 
 function checkUrlForJunk() {
-  chrome.extension.sendRequest({}, function(response) {
+  chrome.runtime.sendMessage({}, function(response) {
     if (response.dimmerAction) {
       // Save dimmer parameters.
       dimmer_options = response.options;
