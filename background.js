@@ -9,8 +9,6 @@ var NOTIFICATION_TEXT = "Time to get back to work!";
 var NOTIFICATION_THRESHOLD = 5;
 var NOTIFICATION_HIT_INTERVAL = 5;
 
-var TRACING = false;
-
 function drawIcon(img_name) {
   img_path = "images/" + img_name;
   chrome.browserAction.setIcon({ path: img_path });
@@ -181,8 +179,8 @@ function tabSelectionChangedHandler(tabId, selectInfo) {
     lastDimmedTabId = null;
   }
 
-  chrome.tabs.get(tabId, function(tab) {
-    if (tab && isNormalUrl(tab.url)) {
+  getTabById(tabId).then(tab => {
+    if (isNormalUrl(tab.url)) {
       // If the page was opened from a junk page, the following check will not
       // indicate that this page is junk. Only the icon is affected though.
       var junkDomain = lookupJunkDomain(tab.url);
@@ -276,11 +274,13 @@ function invokeDimmer(tabId, dimmerAction) {
   // - "create_suspended": a dimmer is created on the page if it is not already there, no timer is started
   // - "suspend": the countdown is suspended if there is a dimmer on the page
   // - "resume": the countdown is resumed if there is a dimmer on the page
-  if (TRACING) {
-    console.log("Invoking action: " + tabId + " -> " + dimmerAction);
-  }
   var primer_code = "if (window.invoke_dimmer) { invoke_dimmer('" + dimmerAction + "'); }";
-  chrome.tabs.executeScript(tabId, { code: primer_code });
+
+  // Check that the tab still exists
+  getTabById(tabId).then(_tab => {
+    // Execute the script
+    chrome.tabs.executeScript(tabId, { code: primer_code });
+  });
 }
 
 function initIcon() {
@@ -302,6 +302,22 @@ function getActiveTab() {
     chrome.tabs.query({ active: true }, results => {
       resolve(results.length === 0 ? null : results[0]);
     });
+  });
+}
+
+function getTabById(tabId) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.get(tabId, tab => {
+        if (tab) {
+          resolve(tab);
+        } else {
+          reject();
+        }
+      });
+    } catch {
+      reject();
+    }
   });
 }
 
