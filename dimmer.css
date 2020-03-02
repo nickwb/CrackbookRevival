@@ -32,38 +32,36 @@
 /* From Animate.css
  * https://daneden.github.io/animate.css/
  */
-@keyframes tada {
-  from {
-    transform: scale3d(1, 1, 1);
-  }
-
-  10%,
-  20% {
-    transform: scale3d(0.9, 0.9, 0.9) rotate3d(0, 0, 1, -3deg);
-  }
-
-  30%,
-  50%,
-  70%,
-  90% {
-    transform: scale3d(1.1, 1.1, 1.1) rotate3d(0, 0, 1, 3deg);
+@keyframes bounce {
+  from,
+  20%,
+  53%,
+  80%,
+  to {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+    transform: translate3d(0, 0, 0);
   }
 
   40%,
-  60%,
-  80% {
-    transform: scale3d(1.1, 1.1, 1.1) rotate3d(0, 0, 1, -3deg);
+  43% {
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+    transform: translate3d(0, -30px, 0);
   }
 
-  to {
-    transform: scale3d(1, 1, 1);
+  70% {
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+    transform: translate3d(0, -15px, 0);
+  }
+
+  90% {
+    transform: translate3d(0, -4px, 0);
   }
 }
 
 #_crackbook_dimmer_ .crackbook_switch_text {
   visibility: hidden;
   text-align: center;
-  padding-top: 10px;
+  padding-top: 40px;
   font-size: 14px;
   color: #aaaaaa;
 }
@@ -73,7 +71,8 @@
 }
 
 #_crackbook_dimmer_ .crackbook_switch_text.animating {
-  animation-name: tada;
+  animation-name: bounce;
   animation-duration: 1s;
   animation-fill-mode: both;
+  animation-iteration-count: infinite;
 }

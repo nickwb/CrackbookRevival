@@ -32,6 +32,16 @@ function getOrCreateDimmer() {
   dimmer.appendChild(switch_text);
   dimmer.switch_text = switch_text;
 
+  // The stopAnimating flag is used to stop the animation,
+  // without stopping part-way through the animation
+  switch_text.stopAnimating = false;
+  switch_text.addEventListener("animationiteration", function() {
+    if (switch_text.stopAnimating) {
+      switch_text.classList.remove("animating");
+      switch_text.stopAnimating = false;
+    }
+  });
+
   if (dimmer_options.blurBackground) {
     dimmer.classList.add("blur-bg");
   }
@@ -145,10 +155,22 @@ function onBegin() {
 
 function revealSwitchText(dimmer) {
   dimmer.switch_text.classList.add("shown");
-  dimmer.switch_text.classList.add("animating");
+
+  // Animate one more time, then stop the suspended animation
   setTimeout(function() {
-    dimmer.switch_text.classList.remove("animating");
-  }, 1500);
+    dimmer.switch_text.stopAnimating = true;
+  }, 500);
+}
+
+function suspend() {
+  clearDimTimer();
+
+  // Start the suspended animation
+  var dimmer = getDimmer();
+  if (dimmer && dimmer.switch_text.classList.contains("shown")) {
+    dimmer.switch_text.stopAnimating = false;
+    dimmer.switch_text.classList.add("animating");
+  }
 }
 
 function resume() {
@@ -175,7 +197,7 @@ function invoke_dimmer(action) {
   } else if (action === "create_suspended") {
     beginBlocking(true);
   } else if (action === "suspend") {
-    clearDimTimer();
+    suspend();
   } else if (action === "resume") {
     resume();
   }
