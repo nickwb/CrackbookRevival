@@ -37,9 +37,11 @@ function updateIcon(active, inJunk) {
     active = extensionActive();
   if (inJunk === null) {
     // null or undefined
-    chrome.tabs.getSelected(null, function(selectedTab) {
-      var junkDomain = lookupJunkDomain(selectedTab.url);
-      updateIcon(active, !!junkDomain);
+    getActiveTab().then(tab => {
+      if (tab) {
+        var junkDomain = lookupJunkDomain(tab.url);
+        updateIcon(active, !!junkDomain);
+      }
     });
     return;
   }
@@ -180,7 +182,7 @@ function tabSelectionChangedHandler(tabId, selectInfo) {
   }
 
   chrome.tabs.get(tabId, function(tab) {
-    if (isNormalUrl(tab.url)) {
+    if (tab && isNormalUrl(tab.url)) {
       // If the page was opened from a junk page, the following check will not
       // indicate that this page is junk. Only the icon is affected though.
       var junkDomain = lookupJunkDomain(tab.url);
@@ -199,8 +201,8 @@ function windowFocusChangedHandler(windowId) {
   }
 
   if (windowId != chrome.windows.WINDOW_ID_NONE) {
-    chrome.tabs.getSelected(windowId, function(tab) {
-      if (isNormalUrl(tab.url)) {
+    getActiveTab().then(tab => {
+      if (tab && isNormalUrl(tab.url)) {
         var junkDomain = lookupJunkDomain(tab.url);
         updateIcon(null, !!junkDomain);
         if (junkDomain && shouldDimPage()) {
@@ -213,9 +215,13 @@ function windowFocusChangedHandler(windowId) {
 }
 
 // A wrapper function that also figures out the selected tab.
-function newPageHandler(request, sender, sendResponse) {
-  chrome.tabs.getSelected(null, function(selectedTab) {
-    handleNewPage(sender.tab, selectedTab, sendResponse);
+function newPageHandler(_request, sender, sendResponse) {
+  getActiveTab().then(tab => {
+    if (tab) {
+      handleNewPage(sender.tab, tab, sendResponse);
+    } else {
+      sendResponse({});
+    }
   });
   return true;
 }
@@ -289,6 +295,14 @@ function initExtension() {
 
   if (getLocal("first_run") && getLocal("junkDomains").length === 0)
     chrome.tabs.create({ url: "options.html" });
+}
+
+function getActiveTab() {
+  return new Promise((resolve, _reject) => {
+    chrome.tabs.query({ active: true }, results => {
+      resolve(results.length === 0 ? null : results[0]);
+    });
+  });
 }
 
 initExtension();
