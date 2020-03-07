@@ -35,12 +35,13 @@ function updateIcon(active, inJunk) {
     active = extensionActive();
   if (inJunk === null) {
     // null or undefined
-    getActiveTab().then(tab => {
-      if (tab) {
+    getActiveTab().then(
+      tab => {
         var junkDomain = lookupJunkDomain(tab.url);
         updateIcon(active, !!junkDomain);
-      }
-    });
+      },
+      () => {}
+    );
     return;
   }
 
@@ -173,54 +174,38 @@ function increaseDimmerDelay() {
   setLocal("dimmerDelay", newDelay);
 }
 
-function tabSelectionChangedHandler(tabId, selectInfo) {
-  if (lastDimmedTabId) {
+function onTabChange(newTab) {
+  if (lastDimmedTabId && lastDimmedTabId !== newTab.id) {
     invokeDimmer(lastDimmedTabId, "suspend");
     lastDimmedTabId = null;
   }
 
-  getTabById(tabId).then(tab => {
-    if (isNormalUrl(tab.url)) {
-      // If the page was opened from a junk page, the following check will not
-      // indicate that this page is junk. Only the icon is affected though.
-      var junkDomain = lookupJunkDomain(tab.url);
-      updateIcon(null, !!junkDomain);
-      invokeDimmer(tabId, "resume");
-      lastDimmedTabId = tabId;
+  if (isNormalUrl(newTab.url)) {
+    var junkDomain = lookupJunkDomain(newTab.url);
+    updateIcon(null, !!junkDomain);
+    if (junkDomain && shouldDimPage()) {
+      invokeDimmer(newTab.id, "resume");
+      lastDimmedTabId = newTab.id;
     }
-  });
+  }
+}
+
+function tabSelectionChangedHandler(tabId, _selectInfo) {
+  getTabById(tabId).then(onTabChange, () => {});
 }
 
 function windowFocusChangedHandler(windowId) {
-  if (lastDimmedTabId) {
-    // TODO: What if that tab does not exist any more?
-    invokeDimmer(lastDimmedTabId, "suspend");
-    lastDimmedTabId = null;
-  }
-
   if (windowId != chrome.windows.WINDOW_ID_NONE) {
-    getActiveTab().then(tab => {
-      if (tab && isNormalUrl(tab.url)) {
-        var junkDomain = lookupJunkDomain(tab.url);
-        updateIcon(null, !!junkDomain);
-        if (junkDomain && shouldDimPage()) {
-          invokeDimmer(tab.id, "resume");
-          lastDimmedTabId = tab.id;
-        }
-      }
-    });
+    getActiveTab().then(onTabChange, () => {});
   }
 }
 
 // A wrapper function that also figures out the selected tab.
 function newPageHandler(_request, sender, sendResponse) {
-  getActiveTab().then(tab => {
-    if (tab) {
-      handleNewPage(sender.tab, tab, sendResponse);
-    } else {
-      sendResponse({});
-    }
-  });
+  getActiveTab().then(
+    tab => handleNewPage(sender.tab, tab, sendResponse),
+    _ => sendResponse({})
+  );
   return true;
 }
 
@@ -277,10 +262,13 @@ function invokeDimmer(tabId, dimmerAction) {
   var primer_code = "if (window.invoke_dimmer) { invoke_dimmer('" + dimmerAction + "'); }";
 
   // Check that the tab still exists
-  getTabById(tabId).then(_tab => {
-    // Execute the script
-    chrome.tabs.executeScript(tabId, { code: primer_code });
-  });
+  getTabById(tabId).then(
+    _tab => {
+      // Execute the script
+      chrome.tabs.executeScript(tabId, { code: primer_code });
+    },
+    () => {}
+  );
 }
 
 function initIcon() {
@@ -298,26 +286,27 @@ function initExtension() {
 }
 
 function getActiveTab() {
-  return new Promise((resolve, _reject) => {
+  return new Promise((resolve, reject) => {
     chrome.tabs.query({ active: true }, results => {
-      resolve(results.length === 0 ? null : results[0]);
+      if (results.length === 0) {
+        reject();
+      } else {
+        resolve(results[0]);
+      }
     });
   });
 }
 
 function getTabById(tabId) {
   return new Promise((resolve, reject) => {
-    try {
-      chrome.tabs.get(tabId, tab => {
-        if (tab) {
-          resolve(tab);
-        } else {
-          reject();
-        }
-      });
-    } catch {
-      reject();
-    }
+    chrome.tabs.query({}, results => {
+      const tab = results.find(t => t.id === tabId);
+      if (tab) {
+        resolve(tab);
+      } else {
+        reject();
+      }
+    });
   });
 }
 
