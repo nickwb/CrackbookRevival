@@ -77,16 +77,6 @@ function shouldDimPage() {
   return getTodaysHits() >= getLocal("dimmerThreshold");
 }
 
-function toQueryString(obj) {
-  // Convert an object to a query string.
-  var components = [];
-  for (var k in obj) {
-    var v = obj[k];
-    components.push(k + "=" + encodeURIComponent(v));
-  }
-  return components.join("&");
-}
-
 function registerHit(domain, blocked, active) {
   storeHit(domain, blocked, active);
 }
@@ -115,6 +105,7 @@ function isNormalUrl(s) {
  */
 
 var lastDimmedTabId = null;
+var suspendedTabs = {};
 
 function handleNewPage(newTab, selectedTab, sendResponse) {
   // Every code path in this function should call sendResponse.
@@ -157,6 +148,8 @@ function handleNewPage(newTab, selectedTab, sendResponse) {
 
         if (tabIsActive) {
           lastDimmedTabId = newTab.id;
+        } else {
+          suspendedTabs[newTab.id] = true;
         }
 
         increaseDimmerDelay();
@@ -175,18 +168,20 @@ function increaseDimmerDelay() {
 }
 
 function onTabChange(newTab) {
+  // Maybe suspend the tab we switched away from
   if (lastDimmedTabId && lastDimmedTabId !== newTab.id) {
     invokeDimmer(lastDimmedTabId, "suspend");
+    suspendedTabs[lastDimmedTabId] = true;
     lastDimmedTabId = null;
   }
 
-  if (isNormalUrl(newTab.url)) {
-    var junkDomain = lookupJunkDomain(newTab.url);
-    updateIcon(null, !!junkDomain);
-    if (junkDomain && shouldDimPage()) {
-      invokeDimmer(newTab.id, "resume");
-      lastDimmedTabId = newTab.id;
-    }
+  // Maybe resume the tab we switched towards
+  // (If it was already suspended)
+  if (suspendedTabs[newTab.id]) {
+    updateIcon(null, true);
+    invokeDimmer(newTab.id, "resume");
+    lastDimmedTabId = newTab.id;
+    suspendedTabs[newTab.id] = false;
   }
 }
 
@@ -195,8 +190,22 @@ function tabSelectionChangedHandler(tabId, _selectInfo) {
 }
 
 function windowFocusChangedHandler(windowId) {
-  if (windowId != chrome.windows.WINDOW_ID_NONE) {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    onTabChange({
+      id: -1,
+      url: "chrome://maybe-devtools"
+    });
+  } else {
     getActiveTab().then(onTabChange, () => {});
+  }
+}
+
+function tabClosedHandler(tabId, _removeInfo) {
+  if (lastDimmedTabId === tabId) {
+    lastDimmedTabId = null;
+  }
+  if (suspendedTabs[tabId] !== undefined) {
+    delete suspendedTabs[tabId];
   }
 }
 
@@ -264,7 +273,6 @@ function invokeDimmer(tabId, dimmerAction) {
   // Check that the tab still exists
   getTabById(tabId).then(
     _tab => {
-      // Execute the script
       chrome.tabs.executeScript(tabId, { code: primer_code });
     },
     () => {}
@@ -278,11 +286,13 @@ function initIcon() {
 function initExtension() {
   chrome.runtime.onMessage.addListener(newPageHandler);
   chrome.tabs.onSelectionChanged.addListener(tabSelectionChangedHandler);
+  chrome.tabs.onRemoved.addListener(tabClosedHandler);
   chrome.windows.onFocusChanged.addListener(windowFocusChangedHandler);
   initIcon();
 
-  if (getLocal("first_run") && getLocal("junkDomains").length === 0)
+  if (getLocal("first_run") && getLocal("junkDomains").length === 0) {
     chrome.tabs.create({ url: "options.html" });
+  }
 }
 
 function getActiveTab() {
