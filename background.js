@@ -29,16 +29,17 @@ function drawTextOnBg(canvas, image, value) {
 
 var iconState = null;
 
-function updateIcon(active, inJunk) {
-  if (active === null)
-    // null or undefined
+function updateIcon(windowId, active, inJunk) {
+  if (active === null) {
     active = extensionActive();
+  }
+
   if (inJunk === null) {
     // null or undefined
-    getActiveTab().then(
+    getActiveTab(windowId).then(
       tab => {
         var junkDomain = lookupJunkDomain(tab.url);
-        updateIcon(active, !!junkDomain);
+        updateIcon(windowId, active, !!junkDomain);
       },
       () => {}
     );
@@ -123,7 +124,7 @@ function handleNewPage(newTab, selectedTab, sendResponse) {
     // solution is to add a temporary blacklist of pages / domains.
   }
 
-  updateIcon(null, !!junkDomain);
+  updateIcon(newTab.windowId, null, !!junkDomain);
 
   var responseSent = false;
 
@@ -178,7 +179,7 @@ function onTabChange(newTab) {
   // Maybe resume the tab we switched towards
   // (If it was already suspended)
   if (suspendedTabs[newTab.id]) {
-    updateIcon(null, true);
+    updateIcon(newTab.windowId, null, true);
     invokeDimmer(newTab.id, "resume");
     lastDimmedTabId = newTab.id;
     suspendedTabs[newTab.id] = false;
@@ -193,10 +194,11 @@ function windowFocusChangedHandler(windowId) {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
     onTabChange({
       id: -1,
+      windowId: -1,
       url: "chrome://maybe-devtools"
     });
   } else {
-    getActiveTab().then(onTabChange, () => {});
+    getActiveTab(windowId).then(onTabChange, () => {});
   }
 }
 
@@ -211,7 +213,7 @@ function tabClosedHandler(tabId, _removeInfo) {
 
 // A wrapper function that also figures out the selected tab.
 function newPageHandler(_request, sender, sendResponse) {
-  getActiveTab().then(
+  getActiveTab(sender.tab.windowId).then(
     tab => handleNewPage(sender.tab, tab, sendResponse),
     _ => sendResponse({})
   );
@@ -280,7 +282,7 @@ function invokeDimmer(tabId, dimmerAction) {
 }
 
 function initIcon() {
-  updateIcon(null, false);
+  updateIcon(chrome.windows.WINDOW_ID_CURRENT, null, false);
 }
 
 function initExtension() {
@@ -295,9 +297,13 @@ function initExtension() {
   }
 }
 
-function getActiveTab() {
+function getActiveTab(windowId) {
   return new Promise((resolve, reject) => {
-    chrome.tabs.query({ active: true }, results => {
+    var query =
+      windowId !== null && window !== undefined
+        ? { active: true, windowId: windowId }
+        : { active: true };
+    chrome.tabs.query(query, results => {
       if (results.length === 0) {
         reject();
       } else {
